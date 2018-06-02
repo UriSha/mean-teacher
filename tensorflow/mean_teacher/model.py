@@ -29,10 +29,10 @@ class Model:
         # Consistency hyperparameters
         'ema_consistency': True,
         'apply_consistency_to_labeled': True,
-        'max_consistency_cost': 100.0,
+        'max_consistency_cost': 3000.0,
         'ema_decay_during_rampup': 0.99,
         'ema_decay_after_rampup': 0.999,
-        'consistency_trust': 0.0,
+        'consistency_trust': 1.0,
         'num_logits': 1, # Either 1 or 2
         'logit_distance_cost': 0.0, # Matters only with 2 outputs
 
@@ -427,8 +427,8 @@ def tower(inputs,
             net = slim.flatten(net)
             assert_shape(net, [None, 128])
 
-            primary_logits = wn.fully_connected(net, 10, init=is_initialization)
-            secondary_logits = wn.fully_connected(net, 10, init=is_initialization)
+            primary_logits = wn.fully_connected(net, 100, init=is_initialization)
+            secondary_logits = wn.fully_connected(net, 100, init=is_initialization)
 
             with tf.control_dependencies([tf.assert_greater_equal(num_logits, 1),
                                           tf.assert_less_equal(num_logits, 2)]):
@@ -437,8 +437,8 @@ def tower(inputs,
                     (tf.equal(num_logits, 2), lambda: secondary_logits),
                 ], exclusive=True, default=lambda: primary_logits)
 
-            assert_shape(primary_logits, [None, 10])
-            assert_shape(secondary_logits, [None, 10])
+            assert_shape(primary_logits, [None, 100])
+            assert_shape(secondary_logits, [None, 100])
             return primary_logits, secondary_logits
 
 
@@ -457,6 +457,7 @@ def errors(logits, labels, name=None):
         predictions = tf.argmax(logits, -1)
         labels = tf.cast(labels, tf.int64)
         per_sample = tf.to_float(tf.not_equal(predictions, labels))
+        # per_sample = tf.Print(per_sample, [per_sample])
         mean = tf.reduce_mean(per_sample, name=scope)
         return mean, per_sample
 
@@ -512,7 +513,7 @@ def consistency_costs(logits1, logits2, cons_coefficient, mask, consistency_trus
     """
 
     with tf.name_scope(name, "consistency_costs") as scope:
-        num_classes = 10
+        num_classes = 100
         assert_shape(logits1, [None, num_classes])
         assert_shape(logits2, [None, num_classes])
         assert_shape(cons_coefficient, [])
