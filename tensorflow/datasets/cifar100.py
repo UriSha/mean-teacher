@@ -21,8 +21,8 @@ class Cifar100ZCA:
             self.evaluation, self.training = self._validation_and_training(random)
 
         if n_labeled != 'all':
-            self.training = self._unlabel(self.training, n_labeled, random)
-            # TODO self.training = self._unlabel_mixup(self.training, n_labeled, random)
+            # self.training = self._unlabel(self.training, n_labeled, random)
+            self.training = self._unlabel_mixup(self.training, n_labeled, random)
 
     def _load(self):
         file_data = np.load(self.DATA_PATH)
@@ -50,20 +50,55 @@ class Cifar100ZCA:
         unlabeled['y'] = self.UNLABELED
         return np.concatenate([labeled, unlabeled])
 
-    def cshift(self, values):  # Circular shift in batch dimension
-        return tf.concat([values[-1:, ...], values[:-1, ...]], 0)
+    # def cshift(self, values):  # Circular shift in batch dimension
+    #     return tf.concat([values[-1:, ...], values[:-1, ...]], 0)
+    #
+    # def _unlabel_mixup(self, data, n_labeled, random, mixup_coef, batch_size):
+    #     labeled, unlabeled = random_balanced_partitions(
+    #         data, n_labeled, labels=data['y'], random=random)
+    #     unlabeled['y'] = self.UNLABELED
+    #
+    #     if mixup_coef > 0:
+    #         mixup = 1.0 * mixup_coef  # Convert to float, as tf.distributions.Beta requires floats.
+    #         beta = tf.distributions.Beta(mixup, mixup)
+    #         lam = beta.sample(batch_size)
+    #         ll = tf.expand_dims(tf.expand_dims(tf.expand_dims(lam, -1), -1), -1)
+    #         labeled['x'] = ll * labeled['x'] + (1 - ll) * self.cshift(labeled['x'])
+    #         labeled['y'] = lam * labeled['y'] + (1 - lam) * self.cshift(labeled['y'])
+    #
+    #     return np.concatenate([labeled, unlabeled])
 
-    def _unlabel_mixup(self, data, n_labeled, random, mixup_coef, batch_size):
+    def _unlabel_mixup(self, data, n_labeled, random, mixup_coef=0):
         labeled, unlabeled = random_balanced_partitions(
             data, n_labeled, labels=data['y'], random=random)
         unlabeled['y'] = self.UNLABELED
 
-        if mixup_coef > 0:
-            mixup = 1.0 * mixup_coef  # Convert to float, as tf.distributions.Beta requires floats.
-            beta = tf.distributions.Beta(mixup, mixup)
-            lam = beta.sample(batch_size)
-            ll = tf.expand_dims(tf.expand_dims(tf.expand_dims(lam, -1), -1), -1)
-            labeled['x'] = ll * labeled['x'] + (1 - ll) * self.cshift(labeled['x'])
-            labeled['y'] = lam * labeled['y'] + (1 - lam) * self.cshift(labeled['y'])
+        labeled_x = labeled['x']
+        labeled_y = labeled['y']
+
+        mixed_data = np.zeros(10000, dtype=[
+            ('x', np.float32, (32, 32, 3)),
+            ('y', np.int32, ())  # We will be using -1 for unlabeled
+        ])
+
+        k = 0
+        if labeled_y[0] == labeled_y[100]:
+            print("mix these")
+
+        for i in range(0, len(labeled_x) - 1, 2):
+            if labeled_y[i] != labeled_y[i + 1]:
+                continue
+            lam = 0.3  # temp
+            mixed_data[k]['x'] = labeled_x[i] * lam + labeled_x[i + 1] * (1 - lam)
+            mixed_data[k]['y'] = labeled_y[i]
+            k += 1
+
+            # for lam in range(0.2, 1, 0.2):
+            #     mixed_data[k]['x'] = labeled_x[i] * lam + labeled_x[i+1] * (1-lam)
+            #     mixed_data[k]['y'] = labeled_y[i]
+            #     k += 1
+
+        mixed_data = mixed_data[:k]
+        labeled = np.concatenate([labeled, mixed_data])
 
         return np.concatenate([labeled, unlabeled])
