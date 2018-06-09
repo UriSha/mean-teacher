@@ -11,7 +11,7 @@ class Cifar100ZCA:
     VALIDATION_SET_SIZE = 5000  # 10% of the training set
     UNLABELED = -1
 
-    def __init__(self, data_seed=0, n_labeled='all', test_phase=False):
+    def __init__(self, data_seed=0, n_labeled='all', test_phase=False, mixup_coef = 4):
         random = np.random.RandomState(seed=data_seed)
         self._load()
 
@@ -22,7 +22,7 @@ class Cifar100ZCA:
 
         if n_labeled != 'all':
             # self.training = self._unlabel(self.training, n_labeled, random)
-            self.training = self._unlabel_mixup(self.training, n_labeled, random)
+            self.training = self._unlabel_mixup(self.training, n_labeled, random, mixup_coef)
 
     def _load(self):
         file_data = np.load(self.DATA_PATH)
@@ -73,6 +73,9 @@ class Cifar100ZCA:
             data, n_labeled, labels=data['y'], random=random)
         unlabeled['y'] = self.UNLABELED
 
+        if mixup_coef == 0:
+            return np.concatenate([labeled, unlabeled])
+
         labeled_x = labeled['x']
         labeled_y = labeled['y']
 
@@ -88,7 +91,10 @@ class Cifar100ZCA:
         for i in range(0, len(labeled_x) - 1, 2):
             if labeled_y[i] != labeled_y[i + 1]:
                 continue
-            lam = 0.3  # temp
+
+            mixup_coef = 1.0 * mixup_coef
+            beta = tf.distributions.Beta(mixup_coef, mixup_coef)
+            lam = beta.sample(1)
             mixed_data[k]['x'] = labeled_x[i] * lam + labeled_x[i + 1] * (1 - lam)
             mixed_data[k]['y'] = labeled_y[i]
             k += 1
