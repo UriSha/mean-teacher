@@ -66,5 +66,8 @@ class Cifar100ZCA:
             beta = tf.distributions.Beta(mixup, mixup)
             lam = beta.sample(batch_size)
             ll = tf.expand_dims(tf.expand_dims(tf.expand_dims(lam, -1), -1), -1)
-            images = ll * images + (1 - ll) * cshift(images)
-            labels = lam * labels + (1 - lam) * cshift(labels)
+            labeled['x'] = ll * labeled['x'] + (1 - ll) * self.cshift(labeled['x'])
+            labeled['y'] = lam * labeled['y'] + (1 - lam) * self.cshift(labeled['y'])
+
+
+        return np.concatenate([labeled, unlabeled])
