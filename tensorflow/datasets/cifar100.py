@@ -58,9 +58,6 @@ class Cifar100ZCA:
             data, n_labeled, labels=data['y'], random=random)
         unlabeled['y'] = self.UNLABELED
 
-
-        # return np.concatenate([labeled, unlabeled])
-
         if mixup_coef > 0:
             mixup = 1.0 * mixup_coef  # Convert to float, as tf.distributions.Beta requires floats.
             beta = tf.distributions.Beta(mixup, mixup)
@@ -68,6 +65,5 @@ class Cifar100ZCA:
             ll = tf.expand_dims(tf.expand_dims(tf.expand_dims(lam, -1), -1), -1)
             labeled['x'] = ll * labeled['x'] + (1 - ll) * self.cshift(labeled['x'])
             labeled['y'] = lam * labeled['y'] + (1 - lam) * self.cshift(labeled['y'])
-
 
         return np.concatenate([labeled, unlabeled])
