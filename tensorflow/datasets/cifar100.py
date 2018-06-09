@@ -1,6 +1,7 @@
 import os
 
 import numpy as np
+import tensorflow as tf
 
 from tensorflow.datasets.utils import random_balanced_partitions, random_partitions
 
@@ -21,6 +22,7 @@ class Cifar100ZCA:
 
         if n_labeled != 'all':
             self.training = self._unlabel(self.training, n_labeled, random)
+            # TODO self.training = self._unlabel_mixup(self.training, n_labeled, random)
 
     def _load(self):
         file_data = np.load(self.DATA_PATH)
@@ -48,5 +50,21 @@ class Cifar100ZCA:
         unlabeled['y'] = self.UNLABELED
         return np.concatenate([labeled, unlabeled])
 
-    def _unlabel_mixup(self, data, n_labeled, random):
-        pass
+    def cshift(self, values):  # Circular shift in batch dimension
+        return tf.concat([values[-1:, ...], values[:-1, ...]], 0)
+
+    def _unlabel_mixup(self, data, n_labeled, random, mixup_coef, batch_size):
+        labeled, unlabeled = random_balanced_partitions(
+            data, n_labeled, labels=data['y'], random=random)
+        unlabeled['y'] = self.UNLABELED
+
+
+        # return np.concatenate([labeled, unlabeled])
+
+        if mixup_coef > 0:
+            mixup = 1.0 * mixup_coef  # Convert to float, as tf.distributions.Beta requires floats.
+            beta = tf.distributions.Beta(mixup, mixup)
+            lam = beta.sample(batch_size)
+            ll = tf.expand_dims(tf.expand_dims(tf.expand_dims(lam, -1), -1), -1)
+            images = ll * images + (1 - ll) * cshift(images)
+            labels = lam * labels + (1 - lam) * cshift(labels)

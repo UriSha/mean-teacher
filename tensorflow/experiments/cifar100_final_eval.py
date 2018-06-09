@@ -1,4 +1,4 @@
-"""CIFAR-10 final evaluation"""
+"""CIFAR-100 final evaluation"""
 
 import logging
 import sys
