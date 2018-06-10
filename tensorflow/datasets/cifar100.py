@@ -3,7 +3,7 @@ import os
 import numpy as np
 import tensorflow as tf
 
-from tensorflow.datasets.utils import random_balanced_partitions, random_partitions
+from .utils import random_balanced_partitions, random_partitions
 
 
 class Cifar100ZCA:
