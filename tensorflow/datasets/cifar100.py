@@ -93,9 +93,10 @@ class Cifar100ZCA:
                 continue
 
             mixup_coef = 1.0 * mixup_coef
-            beta = np.random.beta(mixup_coef, mixup_coef)
+            # beta = np.random.beta(mixup_coef, mixup_coef)
             # beta = tf.distributions.Beta(mixup_coef, mixup_coef)
-            lam = beta.sample(1)
+            # lam = beta.sample(1)
+            lam = np.random.beta(mixup_coef, mixup_coef)
             mixed_data[k]['x'] = labeled_x[i] * lam + labeled_x[i + 1] * (1 - lam)
             mixed_data[k]['y'] = labeled_y[i]
             k += 1
