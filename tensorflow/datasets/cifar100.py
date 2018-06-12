@@ -10,8 +10,9 @@ class Cifar100ZCA:
     DATA_PATH = os.path.join('data', 'images', 'cifar', 'cifar100', 'cifar100_gcn_zca_v2.npz')
     VALIDATION_SET_SIZE = 5000  # 10% of the training set
     UNLABELED = -1
+    UNLABELED_VECTOR = np.zeros((100, 1))
 
-    def __init__(self, data_seed=0, n_labeled='all', test_phase=False, mixup_coef = 4):
+    def __init__(self, data_seed=0, n_labeled='all', test_phase=False, mixup_coef=4):
         random = np.random.RandomState(seed=data_seed)
         self._load()
 
@@ -22,12 +23,15 @@ class Cifar100ZCA:
 
         if n_labeled != 'all':
             # self.training = self._unlabel(self.training, n_labeled, random)
-            self.training = self._unlabel_mixup(self.training, n_labeled, random, mixup_coef)
+            self.training = self._unlabel_labels_as_vectors(self.training, n_labeled, random)
+            # self.training = self._unlabel_mixup(self.training, n_labeled, random, mixup_coef)
 
     def _load(self):
         file_data = np.load(self.DATA_PATH)
-        self._train_data = self._data_array(50000, file_data['train_x'], file_data['train_y'])
-        self._test_data = self._data_array(10000, file_data['test_x'], file_data['test_y'])
+        # self._train_data = self._data_array(50000, file_data['train_x'], file_data['train_y'])
+        # self._test_data = self._data_array(10000, file_data['test_x'], file_data['test_y'])
+        self._train_data = self._data_array_labels_as_vectors(50000, file_data['train_x'], file_data['train_y'])
+        self._test_data = self._data_array_labels_as_vectors(10000, file_data['test_x'], file_data['test_y'])
 
     def _data_array(self, expected_n, x_data, y_data):
         array = np.zeros(expected_n, dtype=[
@@ -36,6 +40,17 @@ class Cifar100ZCA:
         ])
         array['x'] = x_data
         array['y'] = y_data
+        return array
+
+    def _data_array_labels_as_vectors(self, expected_n, x_data, y_data):
+        array = np.zeros(expected_n, dtype=[
+            ('x', np.float32, (32, 32, 3)),
+            ('y', np.float32, (100, 1))]  # ('y', np.zeros(), ())  # We will be using -1 for unlabeled
+                         )
+
+        array['x'] = x_data
+        for i in range(len(y_data)):
+            array['y'][i][y_data[i]] = 1.0
         return array
 
     def _validation_and_training(self, random):
@@ -48,6 +63,19 @@ class Cifar100ZCA:
         labeled, unlabeled = random_balanced_partitions(
             data, n_labeled, labels=data['y'], random=random)
         unlabeled['y'] = self.UNLABELED
+        return np.concatenate([labeled, unlabeled])
+
+    def _unlabel_labels_as_vectors(self, data, n_labeled, random):
+        labels_as_ints = np.zeros((len(data), 1))
+        for i in range(len(data)):
+            for j in range(100):
+                if data['y'][i][j] == 1.0:
+                    labels_as_ints[i] = j
+
+        labeled, unlabeled = random_balanced_partitions(
+            data, n_labeled, labels=labels_as_ints, random=random)
+        for i in range(len(unlabeled['y'])):
+            unlabeled['y'][i] = self.UNLABELED_VECTOR
         return np.concatenate([labeled, unlabeled])
 
     # def cshift(self, values):  # Circular shift in batch dimension
