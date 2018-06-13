@@ -27,7 +27,8 @@ LOG = logging.getLogger('main')
 
 
 def run(data_seed=0):
-    n_labeled = 4000
+    # n_labeled = 4000
+    n_labeled = 'all'
 
     model = Model(RunContext(__file__, 0))
     model['flip_horizontally'] = True

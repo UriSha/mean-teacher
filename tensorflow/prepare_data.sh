@@ -7,12 +7,12 @@
 # http://creativecommons.org/licenses/by-nc/4.0/ or send a letter to
 # Creative Commons, PO Box 1866, Mountain View, CA 94042, USA.
 
-echo "Downloading SVHN"
-mkdir -p data/images/svhn
-(
-    cd data/images/svhn
-    curl -O 'http://ufldl.stanford.edu/housenumbers/{train,test,extra}_32x32.mat'
-)
+#echo "Downloading SVHN"
+#mkdir -p data/images/svhn
+#(
+#    cd data/images/svhn
+#    curl -O 'http://ufldl.stanford.edu/housenumbers/{train,test,extra}_32x32.mat'
+#)
 
 echo
 echo "Downloading CIFAR-10"

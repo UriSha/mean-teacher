@@ -29,10 +29,10 @@ class Model:
         # Consistency hyperparameters
         'ema_consistency': True,
         'apply_consistency_to_labeled': True,
-        'max_consistency_cost': 3000.0,
+        'max_consistency_cost': 100.0,
         'ema_decay_during_rampup': 0.99,
         'ema_decay_after_rampup': 0.999,
-        'consistency_trust': 1.0,
+        'consistency_trust': 0.0,
         'num_logits': 1, # Either 1 or 2
         'logit_distance_cost': 0.0, # Matters only with 2 outputs
 
@@ -97,9 +97,9 @@ class Model:
             self.adam_beta_1 = tf.add(sigmoid_rampdown_value * self.hyper['adam_beta_1_before_rampdown'],
                                       (1 - sigmoid_rampdown_value) * self.hyper['adam_beta_1_after_rampdown'],
                                       name='adam_beta_1')
-            self.cons_coefficient = tf.multiply(sigmoid_rampup_value,
-                                                self.hyper['max_consistency_cost'],
-                                                name='consistency_coefficient')
+            # self.cons_coefficient = tf.multiply(sigmoid_rampup_value,
+            #                                     self.hyper['max_consistency_cost'],
+            #                                     name='consistency_coefficient')
 
             step_rampup_value = step_rampup(self.global_step, self.hyper['rampup_length'])
             self.adam_beta_2 = tf.add((1 - step_rampup_value) * self.hyper['adam_beta_2_during_rampup'],
@@ -136,10 +136,10 @@ class Model:
 
             labeled_consistency = self.hyper['apply_consistency_to_labeled']
             consistency_mask = tf.logical_or(tf.equal(self.labels, -1), labeled_consistency)
-            self.mean_cons_cost_pi, self.cons_costs_pi = consistency_costs(
-                self.cons_logits_1, self.class_logits_2, self.cons_coefficient, consistency_mask, self.hyper['consistency_trust'])
-            self.mean_cons_cost_mt, self.cons_costs_mt = consistency_costs(
-                self.cons_logits_1, self.class_logits_ema, self.cons_coefficient, consistency_mask, self.hyper['consistency_trust'])
+            # self.mean_cons_cost_pi, self.cons_costs_pi = consistency_costs(
+            #     self.cons_logits_1, self.class_logits_2, self.cons_coefficient, consistency_mask, self.hyper['consistency_trust'])
+            # self.mean_cons_cost_mt, self.cons_costs_mt = consistency_costs(
+            #     self.cons_logits_1, self.class_logits_ema, self.cons_coefficient, consistency_mask, self.hyper['consistency_trust'])
 
 
             def l2_norms(matrix):
@@ -154,10 +154,15 @@ class Model:
             self.res_costs_ema = self.hyper['logit_distance_cost'] * self.res_l2s_ema
             self.mean_res_cost_ema = tf.reduce_mean(self.res_costs_ema)
 
+            # self.mean_total_cost_pi, self.total_costs_pi = total_costs(
+            #     self.class_costs_1, self.cons_costs_pi, self.res_costs_1)
+            # self.mean_total_cost_mt, self.total_costs_mt = total_costs(
+            #     self.class_costs_1, self.cons_costs_mt, self.res_costs_1)
             self.mean_total_cost_pi, self.total_costs_pi = total_costs(
-                self.class_costs_1, self.cons_costs_pi, self.res_costs_1)
+                self.class_costs_1, self.res_costs_1)
             self.mean_total_cost_mt, self.total_costs_mt = total_costs(
-                self.class_costs_1, self.cons_costs_mt, self.res_costs_1)
+                self.class_costs_1, self.res_costs_1)
+
             assert_shape(self.total_costs_pi, [3])
             assert_shape(self.total_costs_mt, [3])
 
@@ -185,13 +190,13 @@ class Model:
             "adam_beta_1": self.adam_beta_1,
             "adam_beta_2": self.adam_beta_2,
             "ema_decay": self.ema_decay,
-            "cons_coefficient": self.cons_coefficient,
+            # "cons_coefficient": self.cons_coefficient,
             "train/error/1": self.mean_error_1,
             "train/error/ema": self.mean_error_ema,
             "train/class_cost/1": self.mean_class_cost_1,
             "train/class_cost/ema": self.mean_class_cost_ema,
-            "train/cons_cost/pi": self.mean_cons_cost_pi,
-            "train/cons_cost/mt": self.mean_cons_cost_mt,
+            # "train/cons_cost/pi": self.mean_cons_cost_pi,
+            # "train/cons_cost/mt": self.mean_cons_cost_mt,
             "train/res_cost/1": self.mean_res_cost_1,
             "train/res_cost/ema": self.mean_res_cost_ema,
             "train/total_cost/pi": self.mean_total_cost_pi,
