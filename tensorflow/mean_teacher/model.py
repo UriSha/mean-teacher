@@ -163,8 +163,8 @@ class Model:
             self.mean_total_cost_mt, self.total_costs_mt = total_costs(
                 self.class_costs_1, self.res_costs_1)
 
-            assert_shape(self.total_costs_pi, [3])
-            assert_shape(self.total_costs_mt, [3])
+            assert_shape(self.total_costs_pi, [2])
+            assert_shape(self.total_costs_mt, [2])
 
             self.cost_to_be_minimized = tf.cond(self.hyper['ema_consistency'],
                                                 lambda: self.mean_total_cost_mt,
