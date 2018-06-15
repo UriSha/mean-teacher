@@ -33,6 +33,7 @@ class Cifar100ZCA:
         self._train_data = self._data_array_labels_as_vectors(50000, file_data['train_x'], file_data['train_y'])
         self._test_data = self._data_array_labels_as_vectors(10000, file_data['test_x'], file_data['test_y'])
 
+
     def _data_array(self, expected_n, x_data, y_data):
         array = np.zeros(expected_n, dtype=[
             ('x', np.float32, (32, 32, 3)),
@@ -42,15 +43,19 @@ class Cifar100ZCA:
         array['y'] = y_data
         return array
 
+    def one_hot_labels(self, labels):
+        return np.eye(100)[labels]
+
     def _data_array_labels_as_vectors(self, expected_n, x_data, y_data):
         array = np.zeros(expected_n, dtype=[
             ('x', np.float32, (32, 32, 3)),
-            ('y', np.float32, (100, 1))]  # ('y', np.zeros(), ())  # We will be using -1 for unlabeled
+            ('y', np.float32, (100, ))]  # ('y', np.zeros(), ())  # We will be using -1 for unlabeled
                          )
 
         array['x'] = x_data
-        for i in range(len(y_data)):
-            array['y'][i][y_data[i]] = 1.0
+        # for i in range(len(y_data)):
+        #     array['y'][i][y_data[i]] = 1.0
+        array['y'] = self.one_hot_labels(y_data)
         return array
 
     def _validation_and_training(self, random):
