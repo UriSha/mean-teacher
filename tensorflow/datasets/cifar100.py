@@ -21,8 +21,8 @@ class Cifar100ZCA:
             self.evaluation, self.training = self._validation_and_training(random)
 
         if n_labeled != 'all':
-            # self.training = self._unlabel(self.training, n_labeled, random)
-            self.training = self._unlabel_mixup(self.training, n_labeled, random, mixup_coef)
+            self.training = self._unlabel(self.training, n_labeled, random)
+            # self.training = self._unlabel_mixup(self.training, n_labeled, random, mixup_coef)
 
     def _load(self):
         file_data = np.load(self.DATA_PATH)
