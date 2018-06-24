@@ -10,7 +10,7 @@ class Cifar100ZCA:
     DATA_PATH = os.path.join('data', 'images', 'cifar', 'cifar100', 'cifar100_gcn_zca_v2.npz')
     VALIDATION_SET_SIZE = 5000  # 10% of the training set
     UNLABELED = -1
-    UNLABELED_VECTOR = np.zeros((100, 1))
+    UNLABELED_VECTOR = np.zeros(100,)
 
     def __init__(self, data_seed=0, n_labeled='all', test_phase=False, mixup_coef=4):
         random = np.random.RandomState(seed=data_seed)
