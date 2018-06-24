@@ -33,7 +33,6 @@ class Cifar100ZCA:
         self._train_data = self._data_array_labels_as_vectors(50000, file_data['train_x'], file_data['train_y'])
         self._test_data = self._data_array_labels_as_vectors(10000, file_data['test_x'], file_data['test_y'])
 
-
     def _data_array(self, expected_n, x_data, y_data):
         array = np.zeros(expected_n, dtype=[
             ('x', np.float32, (32, 32, 3)),
@@ -49,7 +48,7 @@ class Cifar100ZCA:
     def _data_array_labels_as_vectors(self, expected_n, x_data, y_data):
         array = np.zeros(expected_n, dtype=[
             ('x', np.float32, (32, 32, 3)),
-            ('y', np.float32, (100, ))]  # ('y', np.zeros(), ())  # We will be using -1 for unlabeled
+            ('y', np.float32, (100,))]  # ('y', np.zeros(), ())  # We will be using -1 for unlabeled
                          )
 
         array['x'] = x_data
@@ -71,11 +70,13 @@ class Cifar100ZCA:
         return np.concatenate([labeled, unlabeled])
 
     def _unlabel_labels_as_vectors(self, data, n_labeled, random):
-        labels_as_ints = np.zeros((len(data), 1))
-        for i in range(len(data)):
-            for j in range(100):
-                if data['y'][i][j] == 1.0:
-                    labels_as_ints[i] = j
+        # labels_as_ints = np.zeros((len(data), 1))
+        # for i in range(len(data)):
+        #     for j in range(100):
+        #         if data['y'][i][j] == 1.0:
+        #             labels_as_ints[i] = j
+
+        labels_as_ints = [np.where(entry == 1)[0][0] for entry in data['y']]
 
         labeled, unlabeled = random_balanced_partitions(
             data, n_labeled, labels=labels_as_ints, random=random)
