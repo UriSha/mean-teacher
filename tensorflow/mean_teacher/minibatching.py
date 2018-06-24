@@ -33,9 +33,14 @@ def training_batches(data, batch_size=100, n_labeled_per_batch='vary', random=np
         )
 
 
+def is_unlabeld(example):
+    return np.array_equal(example['y'], np.zeros(100, ))
+
+
 def split_labeled(data):
-    is_labeled = (data['y'] != -1)
-    return data[is_labeled], data[~is_labeled]
+    labeled = [data[i] for i in range(len(data)) if not is_unlabeld(data[i])]
+    unlabeled = [data[i] for i in range(len(data)) if is_unlabeld(data[i])]
+    return labeled, unlabeled
 
 
 def combine_batches(*batch_generators):
@@ -50,7 +55,7 @@ def eternal_batches(data, batch_size=100, random=np.random):
 
 def unlabel_batches(batch_generator):
     for batch in batch_generator:
-        batch["y"] = -1
+        batch["y"] = np.zeros(100,)
         yield batch
 
 
