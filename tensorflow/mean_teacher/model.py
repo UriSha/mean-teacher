@@ -136,7 +136,8 @@ class Model:
                 self.class_logits_ema, self.labels)
 
             labeled_consistency = self.hyper['apply_consistency_to_labeled']
-            consistency_mask = tf.logical_or(tf.equal(self.labels, -1), labeled_consistency)
+            # consistency_mask = tf.logical_or(tf.equal(self.labels, -1), labeled_consistency)
+            consistency_mask = tf.logical_or(tf.reduce_all(tf.equal(self.labels, 0), 1), labeled_consistency)
             self.mean_cons_cost_pi, self.cons_costs_pi = consistency_costs(
                 self.cons_logits_1, self.class_logits_2, self.cons_coefficient, consistency_mask,
                 self.hyper['consistency_trust'])
@@ -458,17 +459,16 @@ def errors(logits, labels, name=None):
     Note that unlabeled examples are treated differently in cost calculation.
     """
     with tf.name_scope(name, "errors") as scope:
-        # applicable = tf.not_equal(labels, -1)
-        applicable = tf.not_equal(labels, -1)
+        applicable_elemetwise = tf.not_equal(labels, 0)
+        applicable = tf.reduce_any(applicable_elemetwise, 1)
         labels = tf.boolean_mask(labels, applicable)
         logits = tf.boolean_mask(logits, applicable)
         predictions = tf.argmax(logits, -1)
-        labels = tf.cast(labels, tf.int64)
-        per_sample = tf.to_float(tf.not_equal(predictions, labels))
-        # per_sample = tf.Print(per_sample, [per_sample])
+        labels_as_ints = tf.argmax(labels, -1)
+        labels_as_ints = tf.cast(labels_as_ints, tf.int64)
+        per_sample = tf.to_float(tf.not_equal(predictions, labels_as_ints))
         mean = tf.reduce_mean(per_sample, name=scope)
         return mean, per_sample
-
 
 def classification_costs(logits, labels, name=None):
     """Compute classification cost mean and classification cost per sample
@@ -478,13 +478,13 @@ def classification_costs(logits, labels, name=None):
     Note that unlabeled examples are treated differently in error calculation.
     """
     with tf.name_scope(name, "classification_costs") as scope:
-        applicable = tf.not_equal(labels, -1)
+        applicable_elemetwise = tf.not_equal(labels, 0)
+        applicable = tf.reduce_any(applicable_elemetwise, 1)
 
-        # Change -1s to zeros to make cross-entropy computable
-        labels = tf.where(applicable, labels, tf.zeros_like(labels))
+        labels_as_ints = tf.argmax(labels, -1)
 
         # This will now have incorrect values for unlabeled examples
-        per_sample = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels)
+        per_sample = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels_as_ints)
 
         # Retain costs only for labeled
         per_sample = tf.where(applicable, per_sample, tf.zeros_like(per_sample))
@@ -495,6 +495,7 @@ def classification_costs(logits, labels, name=None):
         mean = tf.div(labeled_sum, total_count, name=scope)
 
         return mean, per_sample
+
 
 
 def consistency_costs(logits1, logits2, cons_coefficient, mask, consistency_trust, name=None):
