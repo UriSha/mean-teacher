@@ -29,6 +29,7 @@ def load_batch_files(batch_files):
     x = np.concatenate(data_batches, axis=0)
     y = np.concatenate(label_batches, axis=0)
     z = np.concatenate(coarse_label_batches, axis=0)
+
     return x, y, z
 
 
