@@ -8,7 +8,6 @@ import os
 import numpy as np
 from scipy.io import loadmat
 
-
 DIR = os.path.join('data', 'images', 'cifar', 'cifar100')
 
 
@@ -25,17 +24,21 @@ def cifar100_orig_test():
 
 
 def load_batch_files(batch_files):
-    data_batches, label_batches = zip(*[load_batch_file(batch_file) for batch_file in batch_files])
+    data_batches, label_batches, coarse_label_batches = zip(
+        *[load_batch_file(batch_file) for batch_file in batch_files])
     x = np.concatenate(data_batches, axis=0)
     y = np.concatenate(label_batches, axis=0)
-    return x, y
+    z = np.concatenate(coarse_label_batches, axis=0)
+    return x, y, z
 
 
 def load_batch_file(path):
     d = loadmat(path)
     x = d['data'].astype(np.uint8)
     y = d['fine_labels'].astype(np.uint8).flatten()
-    return x, y
+    z = d['coarse_labels'].astype(np.uint8).flatten()
+
+    return x, y, z
 
 
 def to_channel_rgb(x):
