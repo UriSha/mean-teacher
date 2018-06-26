@@ -37,7 +37,6 @@ def load_batch_file(path):
     x = d['data'].astype(np.uint8)
     y = d['fine_labels'].astype(np.uint8).flatten()
     z = d['coarse_labels'].astype(np.uint8).flatten()
-
     return x, y, z
 
 
