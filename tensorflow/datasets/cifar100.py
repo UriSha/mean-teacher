@@ -55,7 +55,7 @@ class Cifar100ZCA:
         array = np.zeros(expected_n, dtype=[
             ('x', np.float32, (32, 32, 3)),
             ('y', np.float32, (self.NUM_OF_FINE_LABELS,)),  # ('y', np.zeros(), ())  # We will be using -1 for unlabeled
-            ('z', np.float32, (self.NUM_OF_COARSE_LABELS,))]
+            ('z', np.int32, ())]
                          )
 
         array['x'] = x_data
