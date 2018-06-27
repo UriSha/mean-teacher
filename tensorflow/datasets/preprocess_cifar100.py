@@ -77,8 +77,8 @@ def create_zca(imgs, filter_bias=0.1):
 
 
 def do():
-    train_x_orig, train_y = cifar100_orig_train()
-    test_x_orig, test_y = cifar100_orig_test()
+    train_x_orig, train_fine_label, train_coarse_label = cifar100_orig_train()
+    test_x_orig, test_fine_label, test_coarse_label = cifar100_orig_test()
 
     train_x_gcn = global_contrast_normalize(train_x_orig)
     zca = create_zca(train_x_gcn)
@@ -86,7 +86,8 @@ def do():
     test_x = to_channel_rgb(zca(global_contrast_normalize(test_x_orig)))
     p = os.path.join(DIR, "cifar100_gcn_zca_v2.npz")
     assert_not_exists(p)
-    np.savez(p, train_x=train_x, train_y=train_y, test_x=test_x, test_y=test_y)
+    np.savez(p, train_x=train_x, train_y=train_fine_label, train_z=train_coarse_label, test_x=test_x,
+             test_y=test_fine_label, test_z=test_coarse_label)
 
 
 if __name__ == "__main__":

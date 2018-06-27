@@ -9,8 +9,10 @@ from .utils import random_balanced_partitions, random_partitions
 class Cifar100ZCA:
     DATA_PATH = os.path.join('data', 'images', 'cifar', 'cifar100', 'cifar100_gcn_zca_v2.npz')
     VALIDATION_SET_SIZE = 5000  # 10% of the training set
+    NUM_OF_FINE_LABELS = 100
+    NUM_OF_COARSE_LABELS = 20
     UNLABELED = -1
-    UNLABELED_VECTOR = np.zeros(100,)
+    UNLABELED_VECTOR = np.zeros(NUM_OF_FINE_LABELS, )
 
     def __init__(self, data_seed=0, n_labeled='all', test_phase=False, mixup_coef=4):
         random = np.random.RandomState(seed=data_seed)
@@ -30,8 +32,10 @@ class Cifar100ZCA:
         file_data = np.load(self.DATA_PATH)
         # self._train_data = self._data_array(50000, file_data['train_x'], file_data['train_y'])
         # self._test_data = self._data_array(10000, file_data['test_x'], file_data['test_y'])
-        self._train_data = self._data_array_labels_as_vectors(50000, file_data['train_x'], file_data['train_y'])
-        self._test_data = self._data_array_labels_as_vectors(10000, file_data['test_x'], file_data['test_y'])
+        self._train_data = self._data_array_labels_as_vectors(50000, file_data['train_x'], file_data['train_y'],
+                                                              file_data['train_z'])
+        self._test_data = self._data_array_labels_as_vectors(10000, file_data['test_x'], file_data['test_y'],
+                                                             file_data['test_z'])
 
     def _data_array(self, expected_n, x_data, y_data):
         array = np.zeros(expected_n, dtype=[
@@ -45,16 +49,18 @@ class Cifar100ZCA:
     def one_hot_labels(self, labels):
         return np.eye(100)[labels]
 
-    def _data_array_labels_as_vectors(self, expected_n, x_data, y_data):
+    def _data_array_labels_as_vectors(self, expected_n, x_data, y_data, z_data):
         array = np.zeros(expected_n, dtype=[
             ('x', np.float32, (32, 32, 3)),
-            ('y', np.float32, (100,))]  # ('y', np.zeros(), ())  # We will be using -1 for unlabeled
+            ('y', np.float32, (self.NUM_OF_FINE_LABELS,)),  # ('y', np.zeros(), ())  # We will be using -1 for unlabeled
+            ('z', np.float32, (self.NUM_OF_COARSE_LABELS,))]
                          )
 
         array['x'] = x_data
         # for i in range(len(y_data)):
         #     array['y'][i][y_data[i]] = 1.0
         array['y'] = self.one_hot_labels(y_data)
+        array['z'] = z_data
         return array
 
     def _validation_and_training(self, random):
