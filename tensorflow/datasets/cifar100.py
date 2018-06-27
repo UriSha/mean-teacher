@@ -95,7 +95,7 @@ class Cifar100ZCA:
         mixed_data = np.zeros(n_mixed_examples, dtype=[
             ('x', np.float32, (32, 32, 3)),
             ('y', np.float32, (self.NUM_OF_FINE_LABELS,)),  # ('y', np.zeros(), ())  # We will be using -1 for unlabeled
-            ('z', np.float32, (self.NUM_OF_COARSE_LABELS,))]
+            ('z', np.int32, ())]
                               )
 
         n_mixed_examples_per_fine_label_pair = int(n_mixed_examples / 200)
