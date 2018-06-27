@@ -38,9 +38,8 @@ def is_unlabeld(example):
 
 
 def split_labeled(data):
-    labeled = [data[i] for i in range(len(data)) if not is_unlabeld(data[i])]
-    unlabeled = [data[i] for i in range(len(data)) if is_unlabeld(data[i])]
-    return labeled, unlabeled
+    labeled = np.array([True if not is_unlabeld(data[i]) else False for i in range(len(data))])
+    return data[labeled], data[~labeled]
 
 
 def combine_batches(*batch_generators):
