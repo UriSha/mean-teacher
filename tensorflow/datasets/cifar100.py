@@ -15,7 +15,7 @@ class Cifar100ZCA:
     UNLABELED = -1
     UNLABELED_VECTOR = np.zeros(NUM_OF_FINE_LABELS, )
 
-    def __init__(self, data_seed=0, n_labeled='all', test_phase=False, mixup_coef=1):
+    def __init__(self, data_seed=0, n_labeled='all', test_phase=False, mixup_coef=0, n_mixed_examples=10000):
         random = np.random.RandomState(seed=data_seed)
         self._load()
 
@@ -27,7 +27,7 @@ class Cifar100ZCA:
         if n_labeled != 'all':
             # self.training = self._unlabel(self.training, n_labeled, random)
             # self.training = self._unlabel_labels_as_vectors(self.training, n_labeled, random)
-            self.training = self._unlabel_mixup_labels_as_vectors(self.training, n_labeled, random, mixup_coef)
+            self.training = self._unlabel_mixup_labels_as_vectors(self.training, n_labeled, random, mixup_coef, n_mixed_examples)
 
     def _load(self):
         file_data = np.load(self.DATA_PATH)
@@ -118,7 +118,7 @@ class Cifar100ZCA:
 
         return mixed_data
 
-    def _unlabel_mixup_labels_as_vectors(self, data, n_labeled, random, mixup_coef, n_mixed_examples=10000):
+    def _unlabel_mixup_labels_as_vectors(self, data, n_labeled, random, mixup_coef, n_mixed_examples):
         labels_as_ints = [np.where(entry == 1)[0][0] for entry in data['y']]
 
         labeled, unlabeled = random_balanced_partitions(

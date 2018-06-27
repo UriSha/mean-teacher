@@ -33,7 +33,7 @@ def run(data_seed=0):
     tensorboard_dir = model.save_tensorboard_graph()
     LOG.info("Saved tensorboard graph to %r", tensorboard_dir)
 
-    cifar = Cifar100ZCA(data_seed, n_labeled)
+    cifar = Cifar100ZCA(data_seed, n_labeled, mixup_coef=1, n_mixed_examples=10000)
     training_batches = minibatching.training_batches(cifar.training, n_labeled_per_batch=50)
     evaluation_batches_fn = minibatching.evaluation_epoch_generator(cifar.evaluation)
 
