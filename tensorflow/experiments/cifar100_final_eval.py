@@ -10,7 +10,6 @@ from datasets import Cifar100ZCA
 from mean_teacher.model import Model
 from mean_teacher import minibatching
 
-
 LOG = logging.getLogger('main')
 
 
@@ -35,13 +34,15 @@ def one_parameters_set():
     test_phase = True
     return {
         'test_phase': test_phase,
-        'model_type': 'mean_teacher',
+        'data_seed': 2000,
         'n_labeled': 10000,
-        'data_seed': 2000
+        'model_type': 'mean_teacher',
+        'mixup_coef': 1,
+        'n_mixed_labels': 10000
     }
 
 
-def model_hyperparameters(model_type, n_labeled):
+def model_hyperparameters(model_type, n_labeled, n_mixed_labels=0):
     assert model_type in ['mean_teacher', 'pi']
     if n_labeled == 'all':
         return {
@@ -53,7 +54,7 @@ def model_hyperparameters(model_type, n_labeled):
     elif isinstance(n_labeled, int):
         return {
             'n_labeled_per_batch': 'vary',
-            'max_consistency_cost': 3000.0 * n_labeled / 50000,
+            'max_consistency_cost': 3000.0 * (n_labeled + n_mixed_labels) / (50000 + n_mixed_labels),
             'apply_consistency_to_labeled': True,
             'ema_consistency': model_type == 'mean_teacher'
         }
@@ -62,16 +63,18 @@ def model_hyperparameters(model_type, n_labeled):
         assert False, msg.format(locals())
 
 
-def run(test_phase, n_labeled, data_seed, model_type):
+def run(test_phase, n_labeled, data_seed, model_type, mixup_coef=0, n_mixed_labels=0):
     minibatch_size = 100
-    hyperparams = model_hyperparameters(model_type, n_labeled)
+    hyperparams = model_hyperparameters(model_type, n_labeled, n_mixed_labels=n_mixed_labels)
 
     tf.reset_default_graph()
     model = Model(RunContext(__file__, data_seed))
 
-    cifar = Cifar100ZCA(n_labeled=n_labeled,
-                       data_seed=data_seed,
-                       test_phase=test_phase)
+    cifar = Cifar100ZCA(data_seed=data_seed,
+                        n_labeled=n_labeled,
+                        test_phase=test_phase,
+                        mixup_coef=mixup_coef,
+                        n_mixed_examples=n_mixed_labels)
 
     model['flip_horizontally'] = True
     model['ema_consistency'] = hyperparams['ema_consistency']
