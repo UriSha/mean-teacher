@@ -103,8 +103,8 @@ class Cifar100ZCA:
 
         num_of_mixed_examples = 0
         for l in range(self.NUM_OF_COARSE_LABELS):
-            for i in range(self.NUM_OF_FINE_LABELS_PER_COARSE_LABELS):
-                for j in range(i + 1, self.NUM_OF_FINE_LABELS_PER_COARSE_LABELS):
+            for i in range(self.NUM_OF_FINE_LABELS_PER_COARSE_LABEL):
+                for j in range(i + 1, self.NUM_OF_FINE_LABELS_PER_COARSE_LABEL):
                     indices_i = random.choice(self.NUM_OF_FINE_LABELS, n_mixed_examples_per_fine_label_pair)
                     indices_j = random.choice(self.NUM_OF_FINE_LABELS, n_mixed_examples_per_fine_label_pair)
                     for k in range(n_mixed_examples_per_fine_label_pair):
