@@ -98,7 +98,7 @@ class Cifar100ZCA:
             ('z', np.float32, (self.NUM_OF_COARSE_LABELS,))]
                               )
 
-        n_mixed_examples_per_fine_label_pair = n_mixed_examples / 200
+        n_mixed_examples_per_fine_label_pair = int(n_mixed_examples / 200)
         mixup_coef = 1.0 * mixup_coef
 
         num_of_mixed_examples = 0
