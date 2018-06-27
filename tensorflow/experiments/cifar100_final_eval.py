@@ -41,7 +41,6 @@ def one_parameters_set():
     }
 
 
-
 def model_hyperparameters(model_type, n_labeled):
     assert model_type in ['mean_teacher', 'pi']
     if n_labeled == 'all':
