@@ -463,7 +463,8 @@ def errors(logits, labels, name=None):
         applicable = tf.reduce_any(applicable_elemetwise, 1)
         labels = tf.boolean_mask(labels, applicable)
         logits = tf.boolean_mask(logits, applicable)
-        per_sample = tf.losses.mean_squared_error(labels, logits)
+        probabilities = tf.nn.softmax(logits)
+        per_sample = tf.losses.mean_squared_error(labels, probabilities, reduction=Reduction.MEAN)
         mean = tf.reduce_mean(per_sample, name=scope)
         return mean, per_sample
 
