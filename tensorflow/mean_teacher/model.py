@@ -480,7 +480,7 @@ def classification_costs(logits, labels, name=None):
         applicable = tf.reduce_any(applicable_elemetwise, 1)
 
         # This will now have incorrect values for unlabeled examples
-        per_sample = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=labels)
+        per_sample = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
 
         # Retain costs only for labeled
         per_sample = tf.where(applicable, per_sample, tf.zeros_like(per_sample))
