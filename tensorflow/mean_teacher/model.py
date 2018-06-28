@@ -537,6 +537,8 @@ def classification_costs(logits, labels, name=None):
         # Retain costs only for labeled
         per_sample = tf.where(applicable, per_sample, tf.zeros_like(per_sample))
 
+        per_sample = tf.reduce_sum(per_sample, 1)
+
         # Take mean over all examples, not just labeled examples.
         labeled_sum = tf.reduce_sum(per_sample)
         total_count = tf.to_float(tf.shape(per_sample)[0])
