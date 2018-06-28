@@ -463,8 +463,15 @@ def errors(logits, labels, name=None):
         applicable = tf.reduce_any(applicable_elemetwise, 1)
         labels = tf.boolean_mask(labels, applicable)
         logits = tf.boolean_mask(logits, applicable)
-        probabilities = tf.nn.softmax(logits)
-        per_sample = tf.losses.mean_squared_error(labels, probabilities, reduction=tf.losses.Reduction.MEAN)
+
+        predictions = tf.argmax(logits,-1)
+        labels_as_ints = tf.argmax(labels, -1)
+        labels_as_ints = tf.cast(labels_as_ints, tf.int64)
+        per_sample = tf.to_float(tf.not_equal(predictions, labels_as_ints))
+
+
+        # probabilities = tf.nn.softmax(logits)
+        # per_sample = tf.losses.mean_squared_error(labels, probabilities, reduction=tf.losses.Reduction.MEAN)
         mean = tf.reduce_mean(per_sample, name=scope)
         return mean, per_sample
 
@@ -480,9 +487,8 @@ def classification_costs(logits, labels, name=None):
         applicable_elemetwise = tf.not_equal(labels, 0)
         applicable = tf.reduce_any(applicable_elemetwise, 1)
 
-        labels_as_ints = tf.argmax(labels, -1)
         # This will now have incorrect values for unlabeled examples
-        per_sample = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels_as_ints)
+        per_sample = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
 
         # Retain costs only for labeled
         per_sample = tf.where(applicable, per_sample, tf.zeros_like(per_sample))
