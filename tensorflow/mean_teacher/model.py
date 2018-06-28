@@ -464,14 +464,15 @@ def errors(logits, labels, name=None):
         labels = tf.boolean_mask(labels, applicable)
         logits = tf.boolean_mask(logits, applicable)
 
-        predictions = tf.argmax(logits,-1)
-        labels_as_ints = tf.argmax(labels, -1)
-        labels_as_ints = tf.cast(labels_as_ints, tf.int64)
-        per_sample = tf.to_float(tf.not_equal(predictions, labels_as_ints))
+        # predictions = tf.argmax(logits,-1)
+        # labels_as_ints = tf.argmax(labels, -1)
+        # labels_as_ints = tf.cast(labels_as_ints, tf.int64)
+        # per_sample = tf.to_float(tf.not_equal(predictions, labels_as_ints))
 
 
-        # probabilities = tf.nn.softmax(logits)
-        # per_sample = tf.losses.mean_squared_error(labels, probabilities, reduction=tf.losses.Reduction.MEAN)
+        probabilities = tf.nn.softmax(logits)
+
+        per_sample = tf.reduce_mean(tf.squared_difference(labels, probabilities), 1)
         mean = tf.reduce_mean(per_sample, name=scope)
         return mean, per_sample
 
