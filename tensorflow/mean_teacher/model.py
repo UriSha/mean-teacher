@@ -472,7 +472,9 @@ def errors(logits, labels, name=None):
 
         probabilities = tf.nn.softmax(logits)
 
-        per_sample = tf.reduce_mean(tf.squared_difference(labels, probabilities), 1)
+        per_sample = tf.abs(tf.add(labels, tf.negative(probabilities)))
+
+        per_sample = tf.reduce_mean(per_sample, 1)
         mean = tf.reduce_mean(per_sample, name=scope)
         return mean, per_sample
 
