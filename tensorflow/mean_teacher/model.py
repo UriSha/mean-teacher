@@ -459,22 +459,40 @@ def errors(logits, labels, name=None):
     Note that unlabeled examples are treated differently in cost calculation.
     """
     with tf.name_scope(name, "errors") as scope:
+        # applicable_elemetwise = tf.not_equal(labels, 0)
+        # applicable = tf.reduce_any(applicable_elemetwise, 1)
+        # labels = tf.boolean_mask(labels, applicable)
+        # logits = tf.boolean_mask(logits, applicable)
+        #
+        # # predictions = tf.argmax(logits,-1)
+        # # labels_as_ints = tf.argmax(labels, -1)
+        # # labels_as_ints = tf.cast(labels_as_ints, tf.int64)
+        # # per_sample = tf.to_float(tf.not_equal(predictions, labels_as_ints))
+        #
+        # probabilities = tf.nn.softmax(logits)
+        # per_sample = tf.squared_difference(labels, probabilities)
+        # per_sample = tf.reduce_sum(per_sample, 1)
+        # per_sample = tf.scalar_mul(0.5, per_sample)
+        #
+        # mean = tf.reduce_mean(per_sample, name=scope)
+
+
         applicable_elemetwise = tf.not_equal(labels, 0)
         applicable = tf.reduce_any(applicable_elemetwise, 1)
-        labels = tf.boolean_mask(labels, applicable)
-        logits = tf.boolean_mask(logits, applicable)
 
-        # predictions = tf.argmax(logits,-1)
-        # labels_as_ints = tf.argmax(labels, -1)
-        # labels_as_ints = tf.cast(labels_as_ints, tf.int64)
-        # per_sample = tf.to_float(tf.not_equal(predictions, labels_as_ints))
+        # This will now have incorrect values for unlabeled examples
+        per_sample = tf.nn.softmax_cross_entropy_with_logits(logits=logits, labels=labels)
 
-        probabilities = tf.nn.softmax(logits)
-        per_sample = tf.squared_difference(labels, probabilities)
-        per_sample = tf.reduce_sum(per_sample, 1)
-        per_sample = tf.scalar_mul(0.5, per_sample)
+        # Retain costs only for labeled
+        per_sample = tf.where(applicable, per_sample, tf.zeros_like(per_sample))
 
-        mean = tf.reduce_mean(per_sample, name=scope)
+        # per_sample = tf.reduce_sum(per_sample, 1)
+
+        # Take mean over all examples, not just labeled examples.
+        labeled_sum = tf.reduce_sum(per_sample)
+        total_count = tf.to_float(tf.shape(per_sample)[0])
+        mean = tf.div(labeled_sum, total_count, name=scope)
+
         return mean, per_sample
 
 
