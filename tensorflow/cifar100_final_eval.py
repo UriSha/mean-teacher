@@ -37,8 +37,8 @@ def one_parameters_set():
         'data_seed': 2000,
         'n_labeled': 10000,
         'model_type': 'mean_teacher',
-        'mixup_coef': 0,
-        'n_mixed_labels': 0
+        'mixup_coef': 1,
+        'n_mixed_labels': 10000
     }
 
 
