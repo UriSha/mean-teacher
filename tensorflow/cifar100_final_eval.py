@@ -83,6 +83,7 @@ def run(test_phase, n_labeled, data_seed, model_type):
     model['normalize_input'] = False  # Keep ZCA information
     model['rampdown_length'] = 25000
     model['training_length'] = 150000
+    model['entropy_factor'] = 0.1
 
     training_batches = minibatching.training_batches(cifar.training,
                                                      minibatch_size,

@@ -29,6 +29,7 @@ class Model:
         # Consistency hyperparameters
         'ema_consistency': True,
         'apply_consistency_to_labeled': True,
+        'entropy_factor': 0.,
         'max_consistency_cost': 3000.0,
         'ema_decay_during_rampup': 0.99,
         'ema_decay_after_rampup': 0.999,
@@ -141,6 +142,26 @@ class Model:
             self.mean_cons_cost_mt, self.cons_costs_mt = consistency_costs(
                 self.cons_logits_1, self.class_logits_ema, self.cons_coefficient, consistency_mask, self.hyper['consistency_trust'])
 
+            # Amir's code - start
+            entropy_factor = self.hyper['entropy_factor']
+            print('EntFactor:', entropy_factor)
+            self.entropy_loss = 0
+
+            def entropy(logits):
+                v = tf.nn.softmax(logits)
+                return tf.reduce_sum(-v * tf.log(v + 1e-6), axis=1)
+
+            def max_margin(logits):
+                LARGE_INT = 1
+                batch_size = tf.shape(logits)[0]
+                L = tf.shape(logits)[1]
+                delta = tf.einsum('ij,jk->ijk', tf.ones([batch_size, L]), tf.ones([L, L]) - LARGE_INT * tf.eye(L))
+                #                return tf.reduce_mean(tf.reduce_min(tf.maximum(0.,tf.reduce_max(logits + delta,axis=1)),axis=1))
+                return (tf.reduce_min(tf.maximum(0., tf.reduce_max(logits + delta, axis=1)), axis=1))
+
+            #            self.entropy_loss = tf.multiply(entropy_factor, entropy(self.class_logits_1))
+            self.entropy_loss = tf.multiply(entropy_factor, max_margin(self.class_logits_1))
+            # Amir's code - end
 
             def l2_norms(matrix):
                 l2s = tf.reduce_sum(matrix ** 2, axis=1)
@@ -155,11 +176,11 @@ class Model:
             self.mean_res_cost_ema = tf.reduce_mean(self.res_costs_ema)
 
             self.mean_total_cost_pi, self.total_costs_pi = total_costs(
-                self.class_costs_1, self.cons_costs_pi, self.res_costs_1)
+                self.class_costs_1, self.cons_costs_pi, self.res_costs_1,self.entropy_loss)
             self.mean_total_cost_mt, self.total_costs_mt = total_costs(
-                self.class_costs_1, self.cons_costs_mt, self.res_costs_1)
-            assert_shape(self.total_costs_pi, [3])
-            assert_shape(self.total_costs_mt, [3])
+                self.class_costs_1, self.cons_costs_mt, self.res_costs_1,self.entropy_loss)
+            assert_shape(self.total_costs_pi, [4])
+            assert_shape(self.total_costs_mt, [4])
 
             self.cost_to_be_minimized = tf.cond(self.hyper['ema_consistency'],
                                                 lambda: self.mean_total_cost_mt,
