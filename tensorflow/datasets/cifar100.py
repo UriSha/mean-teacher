@@ -11,7 +11,7 @@ class Cifar100ZCA:
     VALIDATION_SET_SIZE = 5000  # 10% of the training set
     UNLABELED = -1
 
-    def __init__(self, data_seed=0, n_labeled='all', test_phase=False, mixup_coef = 4):
+    def __init__(self, data_seed=0, n_labeled='all', test_phase=False):
         random = np.random.RandomState(seed=data_seed)
         self._load()
 
