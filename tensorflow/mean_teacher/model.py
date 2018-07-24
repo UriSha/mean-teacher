@@ -111,7 +111,7 @@ class Model:
                                     name='ema_decay')
 
         (
-            (self.class_logits_1, self.cons_logits_1),
+            (self.class_logits_1, self.cons_logits_1, self.margin_loss_1),
             (self.class_logits_2, self.cons_logits_2),
             (self.class_logits_ema, self.cons_logits_ema)
         ) = inference(
@@ -151,16 +151,13 @@ class Model:
                 v = tf.nn.softmax(logits)
                 return tf.reduce_sum(-v * tf.log(v + 1e-6), axis=1)
 
-            def max_margin(logits):
-                LARGE_INT = 1
-                batch_size = tf.shape(logits)[0]
-                L = tf.shape(logits)[1]
-                delta = tf.einsum('ij,jk->ijk', tf.ones([batch_size, L]), tf.ones([L, L]) - LARGE_INT * tf.eye(L))
-                #                return tf.reduce_mean(tf.reduce_min(tf.maximum(0.,tf.reduce_max(logits + delta,axis=1)),axis=1))
-                return (tf.reduce_min(tf.maximum(0., tf.reduce_max(logits + delta, axis=1)), axis=1))
+
 
             #            self.entropy_loss = tf.multiply(entropy_factor, entropy(self.class_logits_1))
-            self.entropy_loss = tf.multiply(entropy_factor, max_margin(self.class_logits_1))
+            # self.entropy_loss = tf.multiply(entropy_factor, max_margin(self.class_logits_1))
+            self.entropy_loss = tf.multiply(entropy_factor, self.margin_loss_1)
+
+
             # Amir's code - end
 
             def l2_norms(matrix):
@@ -311,6 +308,15 @@ class Model:
 Hyperparam = namedtuple("Hyperparam", ['tensor', 'getter', 'setter'])
 
 
+def max_margin(logits):
+    LARGE_INT = 1
+    batch_size = tf.shape(logits)[0]
+    L = tf.shape(logits)[1]
+    delta = tf.einsum('ij,jk->ijk', tf.ones([batch_size, L]), tf.ones([L, L]) - LARGE_INT * tf.eye(L))
+    #                return tf.reduce_mean(tf.reduce_min(tf.maximum(0.,tf.reduce_max(logits + delta,axis=1)),axis=1))
+    return (tf.reduce_min(tf.maximum(0., tf.reduce_max(logits + delta, axis=1)), axis=1))
+
+
 def training_control(global_step, print_span, evaluation_span, max_step, name=None):
     with tf.name_scope(name, "training_control"):
         return {
@@ -366,13 +372,19 @@ def inference(inputs, is_training, ema_decay, input_noise, student_dropout_proba
     with tf.variable_scope("initialization") as var_scope:
         _ = tower(**tower_args, dropout_probability=student_dropout_probability, is_initialization=True)
     with name_variable_scope("primary", var_scope, reuse=True) as (name_scope, _):
-        class_logits_1, cons_logits_1 = tower(**tower_args, dropout_probability=student_dropout_probability, name=name_scope)
+        class_logits_1, cons_logits_1, margin_loss_1 = tower(**tower_args,
+                                                           dropout_probability=student_dropout_probability,
+                                                           name=name_scope)
     with name_variable_scope("secondary", var_scope, reuse=True) as (name_scope, _):
-        class_logits_2, cons_logits_2 = tower(**tower_args, dropout_probability=teacher_dropout_probability, name=name_scope)
+        class_logits_2, cons_logits_2, _ = tower(**tower_args,
+                                                           dropout_probability=teacher_dropout_probability,
+                                                           name=name_scope)
     with ema_variable_scope("ema", var_scope, decay=ema_decay):
-        class_logits_ema, cons_logits_ema = tower(**tower_args, dropout_probability=teacher_dropout_probability, name=name_scope)
+        class_logits_ema, cons_logits_ema, _ = tower(**tower_args,
+                                                               dropout_probability=teacher_dropout_probability,
+                                                               name=name_scope)
         class_logits_ema, cons_logits_ema = tf.stop_gradient(class_logits_ema), tf.stop_gradient(cons_logits_ema)
-    return (class_logits_1, cons_logits_1), (class_logits_2, cons_logits_2), (class_logits_ema, cons_logits_ema)
+    return (class_logits_1, cons_logits_1,margin_loss_1), (class_logits_2, cons_logits_2), (class_logits_ema, cons_logits_ema)
 
 
 def tower(inputs,
@@ -431,12 +443,19 @@ def tower(inputs,
             net = slim.dropout(net, 1 - dropout_probability, scope='dropout_probability_1')
             assert_shape(net, [None, 16, 16, 128])
 
+            margin_loss = 0
+            temp_primary_logits, temp_secondary_logits = get_logits(net, is_initialization, num_logits)
+            margin_loss += max_margin(temp_primary_logits)
+
             net = wn.conv2d(net, 256, scope="conv_2_1")
             net = wn.conv2d(net, 256, scope="conv_2_2")
             net = wn.conv2d(net, 256, scope="conv_2_3")
             net = slim.max_pool2d(net, [2, 2], scope='max_pool_2')
             net = slim.dropout(net, 1 - dropout_probability, scope='dropout_probability_2')
             assert_shape(net, [None, 8, 8, 256])
+
+            temp_primary_logits, temp_secondary_logits = get_logits(net, is_initialization, num_logits)
+            margin_loss += max_margin(temp_primary_logits)
 
             net = wn.conv2d(net, 512, padding='VALID', scope="conv_3_1")
             assert_shape(net, [None, 6, 6, 512])
@@ -445,22 +464,44 @@ def tower(inputs,
             net = slim.avg_pool2d(net, [6, 6], scope='avg_pool')
             assert_shape(net, [None, 1, 1, 128])
 
+            temp_primary_logits, temp_secondary_logits = get_logits(net, is_initialization, num_logits)
+            margin_loss += max_margin(temp_primary_logits)
+
             net = slim.flatten(net)
             assert_shape(net, [None, 128])
 
-            primary_logits = wn.fully_connected(net, 100, init=is_initialization)
-            secondary_logits = wn.fully_connected(net, 100, init=is_initialization)
+            primary_logits, secondary_logits = get_logits(net, is_initialization, num_logits)
+            margin_loss += max_margin(primary_logits)
+            return primary_logits, secondary_logits, margin_loss
+            # primary_logits = wn.fully_connected(net, 100, init=is_initialization)
+            # secondary_logits = wn.fully_connected(net, 100, init=is_initialization)
+            #
+            # with tf.control_dependencies([tf.assert_greater_equal(num_logits, 1),
+            #                               tf.assert_less_equal(num_logits, 2)]):
+            #     secondary_logits = tf.case([
+            #         (tf.equal(num_logits, 1), lambda: primary_logits),
+            #         (tf.equal(num_logits, 2), lambda: secondary_logits),
+            #     ], exclusive=True, default=lambda: primary_logits)
+            #
+            # assert_shape(primary_logits, [None, 100])
+            # assert_shape(secondary_logits, [None, 100])
+            # return primary_logits, secondary_logits
 
-            with tf.control_dependencies([tf.assert_greater_equal(num_logits, 1),
-                                          tf.assert_less_equal(num_logits, 2)]):
-                secondary_logits = tf.case([
-                    (tf.equal(num_logits, 1), lambda: primary_logits),
-                    (tf.equal(num_logits, 2), lambda: secondary_logits),
-                ], exclusive=True, default=lambda: primary_logits)
 
-            assert_shape(primary_logits, [None, 100])
-            assert_shape(secondary_logits, [None, 100])
-            return primary_logits, secondary_logits
+def get_logits(net, is_initialization, num_logits):
+    primary_logits = wn.fully_connected(net, 100, init=is_initialization)
+    secondary_logits = wn.fully_connected(net, 100, init=is_initialization)
+
+    with tf.control_dependencies([tf.assert_greater_equal(num_logits, 1),
+                                  tf.assert_less_equal(num_logits, 2)]):
+        secondary_logits = tf.case([
+            (tf.equal(num_logits, 1), lambda: primary_logits),
+            (tf.equal(num_logits, 2), lambda: secondary_logits),
+        ], exclusive=True, default=lambda: primary_logits)
+
+    assert_shape(primary_logits, [None, 100])
+    assert_shape(secondary_logits, [None, 100])
+    return primary_logits, secondary_logits
 
 
 def errors(logits, labels, name=None):
