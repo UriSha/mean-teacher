@@ -155,7 +155,8 @@ class Model:
 
             #            self.entropy_loss = tf.multiply(entropy_factor, entropy(self.class_logits_1))
             # self.entropy_loss = tf.multiply(entropy_factor, max_margin(self.class_logits_1))
-            self.entropy_loss = tf.multiply(entropy_factor, self.margin_loss_ema)
+            self.margin_loss = self.margin_loss_1 + self.margin_loss_2 + self.margin_loss_ema
+            self.entropy_loss = tf.multiply(entropy_factor, self.margin_loss )
 
 
             # Amir's code - end
@@ -376,7 +377,7 @@ def inference(inputs, is_training, ema_decay, input_noise, student_dropout_proba
                                                            dropout_probability=student_dropout_probability,
                                                            name=name_scope)
     with name_variable_scope("secondary", var_scope, reuse=True) as (name_scope, _):
-        class_logits_2, cons_logits_2, _ ,margin_loss_2 = tower(**tower_args,
+        class_logits_2, cons_logits_2, margin_loss_2 ,_ = tower(**tower_args,
                                                            dropout_probability=teacher_dropout_probability,
                                                            name=name_scope)
     with ema_variable_scope("ema", var_scope, decay=ema_decay):
