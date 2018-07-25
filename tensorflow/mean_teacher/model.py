@@ -112,8 +112,8 @@ class Model:
 
         (
             (self.class_logits_1, self.cons_logits_1, self.margin_loss_1),
-            (self.class_logits_2, self.cons_logits_2),
-            (self.class_logits_ema, self.cons_logits_ema)
+            (self.class_logits_2, self.cons_logits_2, self.margin_loss_2),
+            (self.class_logits_ema, self.cons_logits_ema, self.margin_loss_ema)
         ) = inference(
             self.images,
             is_training=self.is_training,
@@ -155,7 +155,7 @@ class Model:
 
             #            self.entropy_loss = tf.multiply(entropy_factor, entropy(self.class_logits_1))
             # self.entropy_loss = tf.multiply(entropy_factor, max_margin(self.class_logits_1))
-            self.entropy_loss = tf.multiply(entropy_factor, self.margin_loss_1)
+            self.entropy_loss = tf.multiply(entropy_factor, self.margin_loss_ema)
 
 
             # Amir's code - end
@@ -372,19 +372,19 @@ def inference(inputs, is_training, ema_decay, input_noise, student_dropout_proba
     with tf.variable_scope("initialization") as var_scope:
         _ = tower(**tower_args, dropout_probability=student_dropout_probability, is_initialization=True)
     with name_variable_scope("primary", var_scope, reuse=True) as (name_scope, _):
-        class_logits_1, cons_logits_1, margin_loss_1 = tower(**tower_args,
+        class_logits_1, cons_logits_1, margin_loss_1, _ = tower(**tower_args,
                                                            dropout_probability=student_dropout_probability,
                                                            name=name_scope)
     with name_variable_scope("secondary", var_scope, reuse=True) as (name_scope, _):
-        class_logits_2, cons_logits_2, _ = tower(**tower_args,
+        class_logits_2, cons_logits_2, _ ,margin_loss_2 = tower(**tower_args,
                                                            dropout_probability=teacher_dropout_probability,
                                                            name=name_scope)
     with ema_variable_scope("ema", var_scope, decay=ema_decay):
-        class_logits_ema, cons_logits_ema, _ = tower(**tower_args,
+        class_logits_ema, cons_logits_ema, margin_loss_ema ,_ = tower(**tower_args,
                                                                dropout_probability=teacher_dropout_probability,
                                                                name=name_scope)
         class_logits_ema, cons_logits_ema = tf.stop_gradient(class_logits_ema), tf.stop_gradient(cons_logits_ema)
-    return (class_logits_1, cons_logits_1,margin_loss_1), (class_logits_2, cons_logits_2), (class_logits_ema, cons_logits_ema)
+    return (class_logits_1, cons_logits_1,margin_loss_1), (class_logits_2, cons_logits_2, margin_loss_2), (class_logits_ema, cons_logits_ema,margin_loss_ema )
 
 
 def tower(inputs,
@@ -443,9 +443,10 @@ def tower(inputs,
             net = slim.dropout(net, 1 - dropout_probability, scope='dropout_probability_1')
             assert_shape(net, [None, 16, 16, 128])
 
-            margin_loss = 0
+            primary_margin_loss = secondary_margin_loss =0
             temp_primary_logits, temp_secondary_logits = get_logits(slim.flatten(net), is_initialization, num_logits)
-            margin_loss += max_margin(temp_primary_logits)
+            primary_margin_loss += max_margin(temp_primary_logits)
+            secondary_margin_loss += max_margin(temp_secondary_logits)
 
             net = wn.conv2d(net, 256, scope="conv_2_1")
             net = wn.conv2d(net, 256, scope="conv_2_2")
@@ -455,7 +456,8 @@ def tower(inputs,
             assert_shape(net, [None, 8, 8, 256])
 
             temp_primary_logits, temp_secondary_logits = get_logits(slim.flatten(net), is_initialization, num_logits)
-            margin_loss += max_margin(temp_primary_logits)
+            primary_margin_loss += max_margin(temp_primary_logits)
+            secondary_margin_loss += max_margin(temp_secondary_logits)
 
             net = wn.conv2d(net, 512, padding='VALID', scope="conv_3_1")
             assert_shape(net, [None, 6, 6, 512])
@@ -465,14 +467,16 @@ def tower(inputs,
             assert_shape(net, [None, 1, 1, 128])
 
             temp_primary_logits, temp_secondary_logits = get_logits(slim.flatten(net), is_initialization, num_logits)
-            margin_loss += max_margin(temp_primary_logits)
+            primary_margin_loss += max_margin(temp_primary_logits)
+            secondary_margin_loss += max_margin(temp_secondary_logits)
 
             net = slim.flatten(net)
             assert_shape(net, [None, 128])
 
             primary_logits, secondary_logits = get_logits(net, is_initialization, num_logits)
-            margin_loss += max_margin(primary_logits)
-            return primary_logits, secondary_logits, margin_loss
+            primary_margin_loss += max_margin(primary_logits)
+            secondary_margin_loss += max_margin(secondary_logits)
+            return primary_logits, secondary_logits, primary_margin_loss, secondary_margin_loss
             # primary_logits = wn.fully_connected(net, 100, init=is_initialization)
             # secondary_logits = wn.fully_connected(net, 100, init=is_initialization)
             #
