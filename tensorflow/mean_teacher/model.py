@@ -29,7 +29,7 @@ class Model:
         # Consistency hyperparameters
         'ema_consistency': True,
         'apply_consistency_to_labeled': True,
-        'entropy_factor': 0.,
+        'entropy_factor': 0.1,
         'max_consistency_cost': 3000.0,
         'ema_decay_during_rampup': 0.99,
         'ema_decay_after_rampup': 0.999,
