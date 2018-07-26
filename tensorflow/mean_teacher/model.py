@@ -156,7 +156,8 @@ class Model:
             #            self.entropy_loss = tf.multiply(entropy_factor, entropy(self.class_logits_1))
             # self.entropy_loss = tf.multiply(entropy_factor, max_margin(self.class_logits_1))
             self.margin_loss = self.margin_loss_1 + self.margin_loss_2 + self.margin_loss_ema
-            self.entropy_loss = tf.multiply(entropy_factor, self.margin_loss )
+            # self.entropy_loss = tf.multiply(entropy_factor, self.margin_loss )
+            self.entropy_loss = tf.multiply(entropy_factor, max_margin(self.class_logits_1))
 
 
             # Amir's code - end
