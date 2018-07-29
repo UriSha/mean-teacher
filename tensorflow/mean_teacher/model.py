@@ -29,7 +29,7 @@ class Model:
         # Consistency hyperparameters
         'ema_consistency': True,
         'apply_consistency_to_labeled': True,
-        'entropy_factor': 0.1,
+        'entropy_factor': 0.,
         'max_consistency_cost': 3000.0,
         'ema_decay_during_rampup': 0.99,
         'ema_decay_after_rampup': 0.999,
@@ -154,10 +154,9 @@ class Model:
 
 
             #            self.entropy_loss = tf.multiply(entropy_factor, entropy(self.class_logits_1))
-            # self.entropy_loss = tf.multiply(entropy_factor, max_margin(self.class_logits_1))
             self.margin_loss = self.margin_loss_1 + self.margin_loss_2 + self.margin_loss_ema
-            # self.entropy_loss = tf.multiply(entropy_factor, self.margin_loss )
-            self.entropy_loss = tf.multiply(entropy_factor, max_margin(self.class_logits_1))
+            self.entropy_loss = tf.multiply(entropy_factor, self.margin_loss_1 )
+            # self.entropy_loss = tf.multiply(entropy_factor, max_margin(self.class_logits_1))
 
 
             # Amir's code - end
@@ -467,10 +466,6 @@ def tower(inputs,
             net = wn.conv2d(net, 128, kernel_size=[1, 1], scope="conv_3_3")
             net = slim.avg_pool2d(net, [6, 6], scope='avg_pool')
             assert_shape(net, [None, 1, 1, 128])
-
-            temp_primary_logits, temp_secondary_logits = get_logits(slim.flatten(net), is_initialization, num_logits)
-            primary_margin_loss += max_margin(temp_primary_logits)
-            secondary_margin_loss += max_margin(temp_secondary_logits)
 
             net = slim.flatten(net)
             assert_shape(net, [None, 128])
