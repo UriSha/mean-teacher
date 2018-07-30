@@ -457,8 +457,8 @@ def tower(inputs,
             net = slim.dropout(net, 1 - dropout_probability, scope='dropout_probability_2')
             assert_shape(net, [None, 8, 8, 256])
 
-            #temp_primary_logits, temp_secondary_logits = get_logits(slim.flatten(net), is_initialization, num_logits)
-            #primary_margin_loss += max_margin(temp_primary_logits)
+            temp_primary_logits, temp_secondary_logits = get_logits(slim.flatten(net), is_initialization, num_logits)
+            primary_margin_loss += 0.001 * max_margin(temp_primary_logits)
            # secondary_margin_loss += max_margin(temp_secondary_logits)
 
             net = wn.conv2d(net, 512, padding='VALID', scope="conv_3_1")
