@@ -20,7 +20,6 @@ from . import weight_norm as wn
 from .framework import ema_variable_scope, name_variable_scope, assert_shape, HyperparamVariables
 from . import string_utils
 
-
 LOG = logging.getLogger('main')
 
 
@@ -34,8 +33,8 @@ class Model:
         'ema_decay_during_rampup': 0.99,
         'ema_decay_after_rampup': 0.999,
         'consistency_trust': 1.0,
-        'num_logits': 1, # Either 1 or 2
-        'logit_distance_cost': 0.0, # Matters only with 2 outputs
+        'num_logits': 1,  # Either 1 or 2
+        'logit_distance_cost': 0.0,  # Matters only with 2 outputs
 
         # Optimizer hyperparameters
         'max_learning_rate': 0.003,
@@ -68,7 +67,7 @@ class Model:
         'evaluation_span': 500,
     }
 
-    #pylint: disable=too-many-instance-attributes
+    # pylint: disable=too-many-instance-attributes
     def __init__(self, run_context=None):
         if run_context is not None:
             self.training_log = run_context.create_train_log('training')
@@ -138,9 +137,11 @@ class Model:
             labeled_consistency = self.hyper['apply_consistency_to_labeled']
             consistency_mask = tf.logical_or(tf.equal(self.labels, -1), labeled_consistency)
             self.mean_cons_cost_pi, self.cons_costs_pi = consistency_costs(
-                self.cons_logits_1, self.class_logits_2, self.cons_coefficient, consistency_mask, self.hyper['consistency_trust'])
+                self.cons_logits_1, self.class_logits_2, self.cons_coefficient, consistency_mask,
+                self.hyper['consistency_trust'])
             self.mean_cons_cost_mt, self.cons_costs_mt = consistency_costs(
-                self.cons_logits_1, self.class_logits_ema, self.cons_coefficient, consistency_mask, self.hyper['consistency_trust'])
+                self.cons_logits_1, self.class_logits_ema, self.cons_coefficient, consistency_mask,
+                self.hyper['consistency_trust'])
 
             # Amir's code - start
             entropy_factor = self.hyper['entropy_factor']
@@ -151,13 +152,14 @@ class Model:
                 v = tf.nn.softmax(logits)
                 return tf.reduce_sum(-v * tf.log(v + 1e-6), axis=1)
 
-
+            ema_and_teacher_w = 0.1
 
             #            self.entropy_loss = tf.multiply(entropy_factor, entropy(self.class_logits_1))
-            # self.margin_loss = self.margin_loss_1 + self.margin_loss_2 + self.margin_loss_ema
-            # self.entropy_loss = tf.multiply(entropy_factor, self.margin_loss )
+            self.margin_loss = self.margin_loss_1 + ema_and_teacher_w * self.margin_loss_2 + ema_and_teacher_w * self.margin_loss_ema
+            self.entropy_loss = tf.multiply(entropy_factor, self.margin_loss)
+
             # self.entropy_loss = tf.multiply(entropy_factor, max_margin(self.class_logits_1))
-            self.entropy_loss = tf.multiply(entropy_factor, self.margin_loss_1)
+            # self.entropy_loss = tf.multiply(entropy_factor, self.margin_loss_1)
 
 
             # Amir's code - end
@@ -175,9 +177,9 @@ class Model:
             self.mean_res_cost_ema = tf.reduce_mean(self.res_costs_ema)
 
             self.mean_total_cost_pi, self.total_costs_pi = total_costs(
-                self.class_costs_1, self.cons_costs_pi, self.res_costs_1,self.entropy_loss)
+                self.class_costs_1, self.cons_costs_pi, self.res_costs_1, self.entropy_loss)
             self.mean_total_cost_mt, self.total_costs_mt = total_costs(
-                self.class_costs_1, self.cons_costs_mt, self.res_costs_1,self.entropy_loss)
+                self.class_costs_1, self.cons_costs_mt, self.res_costs_1, self.entropy_loss)
             assert_shape(self.total_costs_pi, [4])
             assert_shape(self.total_costs_mt, [4])
 
@@ -339,6 +341,7 @@ def step_rampup(global_step, rampup_length):
 def sigmoid_rampup(global_step, rampup_length):
     global_step = tf.to_float(global_step)
     rampup_length = tf.to_float(rampup_length)
+
     def ramp():
         phase = 1.0 - tf.maximum(0.0, global_step) / rampup_length
         return tf.exp(-5.0 * phase * phase)
@@ -351,6 +354,7 @@ def sigmoid_rampdown(global_step, rampdown_length, training_length):
     global_step = tf.to_float(global_step)
     rampdown_length = tf.to_float(rampdown_length)
     training_length = tf.to_float(training_length)
+
     def ramp():
         phase = 1.0 - tf.maximum(0.0, training_length - global_step) / rampdown_length
         return tf.exp(-12.5 * phase * phase)
@@ -375,18 +379,20 @@ def inference(inputs, is_training, ema_decay, input_noise, student_dropout_proba
         _ = tower(**tower_args, dropout_probability=student_dropout_probability, is_initialization=True)
     with name_variable_scope("primary", var_scope, reuse=True) as (name_scope, _):
         class_logits_1, cons_logits_1, margin_loss_1, _ = tower(**tower_args,
-                                                           dropout_probability=student_dropout_probability,
-                                                           name=name_scope)
+                                                                dropout_probability=student_dropout_probability,
+                                                                name=name_scope)
     with name_variable_scope("secondary", var_scope, reuse=True) as (name_scope, _):
-        class_logits_2, cons_logits_2, margin_loss_2 ,_ = tower(**tower_args,
-                                                           dropout_probability=teacher_dropout_probability,
-                                                           name=name_scope)
+        class_logits_2, cons_logits_2, margin_loss_2, _ = tower(**tower_args,
+                                                                dropout_probability=teacher_dropout_probability,
+                                                                name=name_scope)
     with ema_variable_scope("ema", var_scope, decay=ema_decay):
-        class_logits_ema, cons_logits_ema, margin_loss_ema ,_ = tower(**tower_args,
-                                                               dropout_probability=teacher_dropout_probability,
-                                                               name=name_scope)
+        class_logits_ema, cons_logits_ema, margin_loss_ema, _ = tower(**tower_args,
+                                                                      dropout_probability=teacher_dropout_probability,
+                                                                      name=name_scope)
         class_logits_ema, cons_logits_ema = tf.stop_gradient(class_logits_ema), tf.stop_gradient(cons_logits_ema)
-    return (class_logits_1, cons_logits_1,margin_loss_1), (class_logits_2, cons_logits_2, margin_loss_2), (class_logits_ema, cons_logits_ema,margin_loss_ema )
+
+    return (class_logits_1, cons_logits_1, margin_loss_1), (class_logits_2, cons_logits_2, margin_loss_2), (
+    class_logits_ema, cons_logits_ema, margin_loss_ema)
 
 
 def tower(inputs,
@@ -415,9 +421,9 @@ def tower(inputs,
         )
 
         with \
-        slim.arg_scope([wn.conv2d], **default_conv_args), \
-        slim.arg_scope(training_mode_funcs, **training_args):
-            #pylint: disable=no-value-for-parameter
+                slim.arg_scope([wn.conv2d], **default_conv_args), \
+                slim.arg_scope(training_mode_funcs, **training_args):
+            # pylint: disable=no-value-for-parameter
             net = inputs
             assert_shape(net, [None, 32, 32, 3])
 
@@ -446,9 +452,9 @@ def tower(inputs,
             assert_shape(net, [None, 16, 16, 128])
 
             # primary_margin_loss =  0 #econdary_margin_loss =0
-           # temp_primary_logits, temp_secondary_logits = get_logits(slim.flatten(net), is_initialization, num_logits)
-           # primary_margin_loss += max_margin(temp_primary_logits)
-           # secondary_margin_loss += max_margin(temp_secondary_logits)
+            # temp_primary_logits, temp_secondary_logits = get_logits(slim.flatten(net), is_initialization, num_logits)
+            # primary_margin_loss += max_margin(temp_primary_logits)
+            # secondary_margin_loss += max_margin(temp_secondary_logits)
 
             net = wn.conv2d(net, 256, scope="conv_2_1")
             net = wn.conv2d(net, 256, scope="conv_2_2")
@@ -459,7 +465,7 @@ def tower(inputs,
 
             # temp_primary_logits, temp_secondary_logits = get_logits(slim.flatten(net), is_initialization, num_logits)
             # primary_margin_loss += 0.0001 * max_margin(temp_primary_logits)
-           # secondary_margin_loss += max_margin(temp_secondary_logits)
+            # secondary_margin_loss += max_margin(temp_secondary_logits)
 
             net = wn.conv2d(net, 512, padding='VALID', scope="conv_3_1")
             assert_shape(net, [None, 6, 6, 512])
@@ -473,7 +479,7 @@ def tower(inputs,
 
             primary_logits, secondary_logits = get_logits(net, is_initialization, num_logits)
             primary_margin_loss = max_margin(primary_logits)
-           # secondary_margin_loss += max_margin(secondary_logits)
+            # secondary_margin_loss += max_margin(secondary_logits)
             return primary_logits, secondary_logits, primary_margin_loss, 0
             # primary_logits = wn.fully_connected(net, 100, init=is_initialization)
             # secondary_logits = wn.fully_connected(net, 100, init=is_initialization)
@@ -584,7 +590,7 @@ def consistency_costs(logits1, logits2, cons_coefficient, mask, consistency_trus
         softmax1 = tf.nn.softmax(logits1)
         softmax2 = tf.nn.softmax(logits2)
 
-        kl_cost_multiplier = 2 * (1 - 1/num_classes) / num_classes**2 / consistency_trust**2
+        kl_cost_multiplier = 2 * (1 - 1 / num_classes) / num_classes ** 2 / consistency_trust ** 2
 
         def pure_mse():
             costs = tf.reduce_mean((softmax1 - softmax2) ** 2, -1)
