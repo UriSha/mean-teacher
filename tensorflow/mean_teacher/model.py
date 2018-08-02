@@ -463,14 +463,22 @@ def tower(inputs,
             net = slim.dropout(net, 1 - dropout_probability, scope='dropout_probability_2')
             assert_shape(net, [None, 8, 8, 256])
 
-            temp_primary_logits, _ = get_logits(slim.flatten(net), is_initialization, num_logits)
-            primary_margin_loss = 0.000001 * max_margin(temp_primary_logits)
+            # temp_primary_logits, _ = get_logits(slim.flatten(net), is_initialization, num_logits)
+            # primary_margin_loss = 0.000001 * max_margin(temp_primary_logits)
             # secondary_margin_loss += max_margin(temp_secondary_logits)
 
             net = wn.conv2d(net, 512, padding='VALID', scope="conv_3_1")
             assert_shape(net, [None, 6, 6, 512])
             net = wn.conv2d(net, 256, kernel_size=[1, 1], scope="conv_3_2")
+
+            # temp_primary_logits, _ = get_logits(slim.flatten(net), is_initialization, num_logits)
+            # primary_margin_loss = 0.000001 * max_margin(temp_primary_logits)
+
             net = wn.conv2d(net, 128, kernel_size=[1, 1], scope="conv_3_3")
+
+            temp_primary_logits, _ = get_logits(slim.flatten(net), is_initialization, num_logits)
+            primary_margin_loss = 0.000001 * max_margin(temp_primary_logits)
+
             net = slim.avg_pool2d(net, [6, 6], scope='avg_pool')
             assert_shape(net, [None, 1, 1, 128])
 
