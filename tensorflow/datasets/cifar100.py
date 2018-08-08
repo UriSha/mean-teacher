@@ -21,6 +21,10 @@ class Cifar100ZCA:
 
         if test_phase:
             self.evaluation, self.training = self._test_and_training()
+            if mixup_coef > 0:
+                mixed_data = self._mixup_labeled_data(self.training, random, mixup_coef, n_mixed_examples)
+                self.training = np.concatenate([self.training, mixed_data])
+
         else:
             self.evaluation, self.training = self._validation_and_training(random)
 

@@ -35,10 +35,10 @@ def one_parameters_set():
     return {
         'test_phase': test_phase,
         'data_seed': 2000,
-        'n_labeled': 10000,
+        'n_labeled': 'all',
         'model_type': 'mean_teacher',
-        'mixup_coef': 1,
-        'n_mixed_labels': 10000
+        'mixup_coef': 0,
+        'n_mixed_labels': 0
     }
 
 
